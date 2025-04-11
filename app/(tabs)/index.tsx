@@ -1,74 +1,143 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  Modal,
+} from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
+import * as Location from 'expo-location';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+const POI = [
+  { id: '1', title: 'Beffroi d\'Amiens', latitude: 49.895, longitude: 2.302 },
+  { id: '2', title: 'Cathédrale Notre-Dame', latitude: 49.8955, longitude: 2.303 },
+];
 
-export default function HomeScreen() {
+const Index = () => {
+  const [userLocation, setUserLocation] = useState<Location.LocationObjectCoords | null>(null);
+  const [showList, setShowList] = useState(false);
+
+  useEffect(() => {
+    const getLocation = async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Permission denied');
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      setUserLocation(location.coords);
+    };
+
+    getLocation();
+  }, []);
+
+  const initialRegion = {
+    latitude: 48.8566,
+    longitude: 2.3522,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={styles.container}>
+      <Text style={styles.header}>Carte interactive</Text>
+
+      {/* Bouton pour afficher la liste */}
+      <TouchableOpacity style={styles.button} onPress={() => setShowList(true)}>
+        <Text style={styles.buttonText}>Afficher la liste</Text>
+      </TouchableOpacity>
+
+      <MapView
+        style={styles.map}
+        initialRegion={initialRegion}
+        region={userLocation ? {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        } : initialRegion}
+        showsUserLocation={true}
+        loadingEnabled={true}
+      >
+        {userLocation && (
+          <Marker
+            coordinate={{ latitude: userLocation.latitude, longitude: userLocation.longitude }}
+            title="Vous êtes ici"
+          />
+        )}
+
+        {POI.map((item) => (
+          <Marker
+            key={item.id}
+            coordinate={{ latitude: item.latitude, longitude: item.longitude }}
+            title={item.title}
+          />
+        ))}
+      </MapView>
+
+      {/* Modal avec liste */}
+      <Modal visible={showList} animationType="slide">
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Liste des lieux</Text>
+          <FlatList
+            data={POI}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <Text style={styles.listItem}>{item.title}</Text>
+            )}
+          />
+          <TouchableOpacity onPress={() => setShowList(false)} style={styles.buttonClose}>
+            <Text style={styles.buttonText}>Fermer</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: { flex: 1 },
+  header: {
+    textAlign: 'center',
+    fontSize: 24,
+    marginVertical: 10,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  map: { flex: 1 },
+  button: {
     position: 'absolute',
+    top: 60,
+    right: 20,
+    backgroundColor: '#007AFF',
+    padding: 10,
+    borderRadius: 10,
+    zIndex: 1,
+  },
+  buttonText: { color: '#fff', fontWeight: 'bold' },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: 'white',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  listItem: {
+    fontSize: 18,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  buttonClose: {
+    marginTop: 20,
+    backgroundColor: '#FF3B30',
+    padding: 10,
+    borderRadius: 10,
+    alignSelf: 'center',
   },
 });
+
+export default Index;
